@@ -1,0 +1,127 @@
+import java_cup.runtime.*;
+import java.util.*;
+
+terminal String RETURN,IF,ELSE,READ,WRITE,BEGIN,END,MAIN,
+            ID,LEFTPAREN,RIGHTPAREN,SEMI,QSTRING,PLUS,MINUS,NUM
+         ,EQUALTO,NOTEQUAL,MULT,DIV,ASSIGN,COMMA,INT,REAL,STRING;
+
+non terminal String program2
+,program
+,block
+,methodDecl
+,type
+,statement
+,boolExpression
+,formalParams
+,formalParam
+,extraParam
+,localVarDecl
+,assignStmt
+,returnStmt
+,writeStmt
+,readStmt
+,expression
+,actualParams
+,manyStmt
+,multiplicativeExpr
+,multiplicativeExprs
+,primaryExpr
+,primaryExprs
+,extraActual
+,matchedstmt
+,unmatchedstmt
+,multDiv
+,addSub;
+
+precedence left PLUS, MINUS;
+precedence left MULT, DIV;
+
+program2 ::= program: e
+{: RESULT=
+"import java.io.*;\n"
++"import java.util.*;\n"
++"class A4 {"
++"\nstatic Scanner scan;\n"+"\n\tstatic PrintWriter writter;"+e+"}";:};
+
+program ::= methodDecl:e {: RESULT = e;:}
+|methodDecl:e program:e1  {: RESULT =  e + e1; :};
+
+methodDecl  ::= type MAIN ID LEFTPAREN formalParams RIGHTPAREN block:b {:RESULT = "public static void main(String args[]) throws Exception" + b;:}
+                |type:t ID:i LEFTPAREN formalParams:f RIGHTPAREN block:b
+                    {:RESULT = "public static "+ t + " " +i+ "("+f+") throws Exception"+b;:};
+
+formalParams::= formalParam:f extraParam:e{:RESULT =f + e;:}|{:RESULT = "";:};
+
+extraParam  ::= COMMA formalParam:f extraParam:e{:RESULT = ","+f+e;:} |{:RESULT = "";:};
+
+formalParam ::= type:t ID:i{:RESULT = t+" "+i;:};
+
+block   ::= BEGIN manyStmt:m END{:RESULT = "{"+m+"}";:};
+
+manyStmt ::= statement:s manyStmt:m {:RESULT = s+m;:}
+             |statement:s {:RESULT =s;:};
+
+statement ::= unmatchedstmt:u {:RESULT = u;:}| matchedstmt:m {:RESULT = m;:};
+
+matchedstmt  ::=    block:e{:RESULT = e;:}
+                    | assignStmt:e{:RESULT = e;:}
+                    | localVarDecl:e{:RESULT = e;:}
+                    | returnStmt:e{:RESULT = e;:}
+                    | writeStmt:e{:RESULT = e;:}
+                    | readStmt:e{:RESULT = e;:}
+                    | IF LEFTPAREN boolExpression:b RIGHTPAREN matchedstmt:m1 ELSE matchedstmt:m2{:RESULT = "if("+b+")"+m1+"else"+m2;:};
+
+unmatchedstmt ::=   IF LEFTPAREN boolExpression:b RIGHTPAREN matchedstmt:m ELSE unmatchedstmt:u {:RESULT = "if("+b+")"+m+"else"+u;:}
+                    |IF LEFTPAREN boolExpression:b RIGHTPAREN matchedstmt:m{:RESULT = "if("+b+")"+m;:};
+
+assignStmt  ::= ID:i ASSIGN expression:e SEMI {:RESULT = i + "=" + e + ";\n";:}
+                |ID:i ASSIGN QSTRING:q SEMI{:RESULT = i + "=" + q + ";\n";:};
+
+localVarDecl::= type:t ID:i SEMI{:RESULT = t +" "+i+";\n";:}
+                | type:t assignStmt:a{:RESULT = t+" "+a;:};
+
+returnStmt  ::= RETURN expression:e SEMI{:RESULT = "return "+e+";\n"; :};
+
+writeStmt ::= WRITE LEFTPAREN expression:e COMMA QSTRING:q RIGHTPAREN SEMI {:RESULT = "\nwritter = new PrintWriter(new File("+q+"));\nwritter.print("+e+");writter.close();\n";:};
+
+readStmt ::= READ LEFTPAREN ID:i COMMA QSTRING:q RIGHTPAREN SEMI {:RESULT ="scan = new Scanner(new FileInputStream("+q+"));\n"+ i+"=scan.nextInt();\n";:};
+
+expression ::= multiplicativeExpr:m{:RESULT = m;:}
+              |multiplicativeExpr:m1 multiplicativeExprs:m2{:RESULT = m1 + m2;:}
+              ;
+
+multiplicativeExpr ::= primaryExpr:p {:RESULT = p;:}
+                      |primaryExpr:p primaryExprs:ps{:RESULT = p+ps;:}
+                      ;
+
+multiplicativeExprs ::= addSub:a multiplicativeExpr:m multiplicativeExprs:ms{:RESULT = a+m+ms;:}
+                        |addSub:a multiplicativeExpr:m{:RESULT = a+m;:};
+
+primaryExpr ::= NUM:n {:RESULT = "" + n;:}
+               |ID:i {:RESULT = "" + i;:}
+               |LEFTPAREN expression:e RIGHTPAREN {:RESULT = "("+e+")";:}
+               |ID:d LEFTPAREN actualParams:a RIGHTPAREN {:RESULT = d + "(" + a + ")";:}
+               ;
+
+primaryExprs    ::= multDiv:m primaryExpr:p primaryExprs:ps {:RESULT = m + p+ ps;:}
+                    |multDiv:m primaryExpr:p {:RESULT = m + p;:};
+
+boolExpression  ::= expression:e EQUALTO expression:e1 {:RESULT = e + "==" + e1;:}
+                   |expression:e NOTEQUAL expression:e1 {:RESULT = e + "!=" + e1;:}
+                   ;
+
+actualParams    ::= expression:e {:RESULT = e;:}
+                    |expression:e extraActual:a {:RESULT = e + a;:}
+                    |{:RESULT = "";:};
+extraActual ::= COMMA expression:e {:RESULT = ","+e;:}
+                |COMMA expression:e extraActual:ea {:RESULT = ","+e+ea;:};
+
+type    ::= INT {:RESULT = "int";:}
+            |REAL {:RESULT = "double";:}
+            |STRING {:RESULT = "String";:};
+
+addSub  ::= PLUS {:RESULT = "+";:}
+            |MINUS {:RESULT = "-";:};
+
+multDiv ::= MULT {:RESULT = "*";:}
+            |DIV {:RESULT = "/";:};
